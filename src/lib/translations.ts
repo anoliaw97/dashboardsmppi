@@ -3,12 +3,26 @@ export type Lang = "en" | "ms";
 const translations = {
   // Header
   subtitle: {
-    en: "Search & Export Data from Multiple Databases",
-    ms: "Cari & Eksport Data dari Pelbagai Pangkalan Data",
+    en: "Specific Information Retrieval Intelligence System",
+    ms: "Sistem Pintar Pencarian Maklumat Khusus",
   },
   totalSources: {
     en: "Total data sources:",
     ms: "Jumlah sumber data:",
+  },
+
+  // Navigation tabs
+  tabDataExplorer: {
+    en: "Data Explorer",
+    ms: "Penjelajah Data",
+  },
+  tabAiAssistant: {
+    en: "AI Assistant",
+    ms: "Pembantu AI",
+  },
+  tabRequestForm: {
+    en: "Data Request",
+    ms: "Permohonan Data",
   },
 
   // Data source selector
@@ -22,6 +36,10 @@ const translations = {
     en: "Search in",
     ms: "Cari dalam",
   },
+  globalSearch: {
+    en: "Global search across all columns...",
+    ms: "Carian global merentasi semua lajur...",
+  },
 
   // Buttons
   filter: {
@@ -31,6 +49,10 @@ const translations = {
   columns: {
     en: "Columns",
     ms: "Lajur",
+  },
+  clearAll: {
+    en: "Clear All",
+    ms: "Kosongkan Semua",
   },
 
   // Filter area
@@ -61,6 +83,10 @@ const translations = {
   resetAllFilters: {
     en: "Reset All Filters",
     ms: "Set Semula Semua Penapis",
+  },
+  filterPlaceholder: {
+    en: "Filter...",
+    ms: "Tapis...",
   },
 
   // Column picker
@@ -117,6 +143,222 @@ const translations = {
   page: {
     en: "Page",
     ms: "Halaman",
+  },
+
+  // AI Assistant
+  aiTitle: {
+    en: "AI Data Assistant",
+    ms: "Pembantu Data AI",
+  },
+  aiSubtitle: {
+    en: "Ask questions about your data in natural language",
+    ms: "Tanya soalan mengenai data anda dalam bahasa biasa",
+  },
+  aiQueryTab: {
+    en: "Query Builder",
+    ms: "Pembina Pertanyaan",
+  },
+  aiExplainTab: {
+    en: "Explain Data",
+    ms: "Terangkan Data",
+  },
+  aiQueryPlaceholder: {
+    en: "e.g., Show all lecturers from Faculty of Engineering with grade DM54...",
+    ms: "cth., Tunjukkan semua pensyarah dari Fakulti Kejuruteraan dengan gred DM54...",
+  },
+  aiExplainPlaceholder: {
+    en: "e.g., What does H-index mean? Explain the grading system DM54...",
+    ms: "cth., Apa maksud H-index? Terangkan sistem gred DM54...",
+  },
+  aiGenerate: {
+    en: "Generate Query",
+    ms: "Jana Pertanyaan",
+  },
+  aiExplain: {
+    en: "Explain",
+    ms: "Terangkan",
+  },
+  aiRunQuery: {
+    en: "Run Query",
+    ms: "Jalankan Pertanyaan",
+  },
+  aiGeneratedSql: {
+    en: "Generated SQL (Read-Only)",
+    ms: "SQL Dijana (Baca Sahaja)",
+  },
+  aiResults: {
+    en: "Query Results",
+    ms: "Keputusan Pertanyaan",
+  },
+  aiExplanation: {
+    en: "Explanation",
+    ms: "Penjelasan",
+  },
+  aiSelectDb: {
+    en: "Select database to query:",
+    ms: "Pilih pangkalan data untuk pertanyaan:",
+  },
+  aiReadOnlyNote: {
+    en: "Read-only mode: Only SELECT queries are allowed. No data modification permitted.",
+    ms: "Mod baca sahaja: Hanya pertanyaan SELECT dibenarkan. Tiada pengubahsuaian data dibenarkan.",
+  },
+  aiProcessing: {
+    en: "Processing your request...",
+    ms: "Memproses permintaan anda...",
+  },
+  aiSampleQueries: {
+    en: "Try these examples:",
+    ms: "Cuba contoh-contoh ini:",
+  },
+
+  // Request Form
+  reqTitle: {
+    en: "Data Request Form",
+    ms: "Borang Permohonan Data",
+  },
+  reqSubtitle: {
+    en: "Submit a request for specific data extraction from SMPPI databases",
+    ms: "Hantar permohonan untuk pengekstrakan data khusus dari pangkalan data SMPPI",
+  },
+  reqName: {
+    en: "Full Name",
+    ms: "Nama Penuh",
+  },
+  reqStaffId: {
+    en: "Staff ID / Matric No.",
+    ms: "No. Kakitangan / No. Matrik",
+  },
+  reqEmail: {
+    en: "Email Address",
+    ms: "Alamat Emel",
+  },
+  reqDept: {
+    en: "Department / Faculty",
+    ms: "Jabatan / Fakulti",
+  },
+  reqPhone: {
+    en: "Phone Number",
+    ms: "No. Telefon",
+  },
+  reqPosition: {
+    en: "Position / Designation",
+    ms: "Jawatan",
+  },
+  reqSectionInfo: {
+    en: "Requestor Information",
+    ms: "Maklumat Pemohon",
+  },
+  reqSectionData: {
+    en: "Data Request Details",
+    ms: "Butiran Permohonan Data",
+  },
+  reqDatabase: {
+    en: "Database / Data Source",
+    ms: "Pangkalan Data / Sumber Data",
+  },
+  reqPurpose: {
+    en: "Purpose of Request",
+    ms: "Tujuan Permohonan",
+  },
+  reqPurposeResearch: {
+    en: "Research",
+    ms: "Penyelidikan",
+  },
+  reqPurposeAdmin: {
+    en: "Administration",
+    ms: "Pentadbiran",
+  },
+  reqPurposeReport: {
+    en: "Reporting",
+    ms: "Pelaporan",
+  },
+  reqPurposeAudit: {
+    en: "Audit",
+    ms: "Audit",
+  },
+  reqPurposeOther: {
+    en: "Other",
+    ms: "Lain-lain",
+  },
+  reqDescription: {
+    en: "Description of Data Required",
+    ms: "Penerangan Data Yang Diperlukan",
+  },
+  reqDescPlaceholder: {
+    en: "Please describe the specific data fields, filters, and conditions you need...",
+    ms: "Sila nyatakan medan data, penapis, dan syarat khusus yang anda perlukan...",
+  },
+  reqDateRange: {
+    en: "Data Date Range (if applicable)",
+    ms: "Julat Tarikh Data (jika berkenaan)",
+  },
+  reqFormat: {
+    en: "Preferred Output Format",
+    ms: "Format Output Pilihan",
+  },
+  reqUrgency: {
+    en: "Urgency Level",
+    ms: "Tahap Keutamaan",
+  },
+  reqUrgencyLow: {
+    en: "Low (within 2 weeks)",
+    ms: "Rendah (dalam 2 minggu)",
+  },
+  reqUrgencyMedium: {
+    en: "Medium (within 1 week)",
+    ms: "Sederhana (dalam 1 minggu)",
+  },
+  reqUrgencyHigh: {
+    en: "High (within 3 days)",
+    ms: "Tinggi (dalam 3 hari)",
+  },
+  reqUrgencyCritical: {
+    en: "Critical (within 24 hours)",
+    ms: "Kritikal (dalam 24 jam)",
+  },
+  reqJustification: {
+    en: "Justification / Approval Reference",
+    ms: "Justifikasi / Rujukan Kelulusan",
+  },
+  reqJustPlaceholder: {
+    en: "Approval letter reference, project code, or authorizing officer...",
+    ms: "Rujukan surat kelulusan, kod projek, atau pegawai yang memberi kuasa...",
+  },
+  reqConfidential: {
+    en: "Data contains confidential/sensitive information",
+    ms: "Data mengandungi maklumat sulit/sensitif",
+  },
+  reqAgree: {
+    en: "I agree to use the data solely for the stated purpose and comply with data protection policies",
+    ms: "Saya bersetuju menggunakan data hanya untuk tujuan yang dinyatakan dan mematuhi dasar perlindungan data",
+  },
+  reqSubmit: {
+    en: "Submit Request",
+    ms: "Hantar Permohonan",
+  },
+  reqReset: {
+    en: "Reset Form",
+    ms: "Set Semula Borang",
+  },
+  reqSectionApproval: {
+    en: "Approval & Compliance",
+    ms: "Kelulusan & Pematuhan",
+  },
+  reqSubmitted: {
+    en: "Request submitted successfully! Reference No:",
+    ms: "Permohonan berjaya dihantar! No. Rujukan:",
+  },
+  reqSelectDb: {
+    en: "-- Select database --",
+    ms: "-- Pilih pangkalan data --",
+  },
+  reqSelectPurpose: {
+    en: "-- Select purpose --",
+    ms: "-- Pilih tujuan --",
+  },
+  reqSelectUrgency: {
+    en: "-- Select urgency --",
+    ms: "-- Pilih keutamaan --",
   },
 
   // Data source labels
