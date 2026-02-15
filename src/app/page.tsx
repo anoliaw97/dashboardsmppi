@@ -15,15 +15,20 @@ import {
   SlidersHorizontal,
   FileSpreadsheet,
   RotateCcw,
+  Globe,
 } from "lucide-react";
-import { dataSources, DataSourceConfig } from "@/lib/data-sources";
+import { getDataSources, DataSourceConfig } from "@/lib/data-sources";
 import { exportToExcel } from "@/lib/export-excel";
 import { ColumnDef } from "@/lib/types";
+import { Lang, t } from "@/lib/translations";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>;
 
 export default function Dashboard() {
+  const [lang, setLang] = useState<Lang>("en");
+  const dataSources = useMemo(() => getDataSources(lang), [lang]);
+
   const [selectedSource, setSelectedSource] = useState<string>(dataSources[0].id);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -112,10 +117,10 @@ export default function Dashboard() {
     return [...filteredData].sort((a, b) => {
       const aVal = String(a[sortKey] ?? "");
       const bVal = String(b[sortKey] ?? "");
-      const cmp = aVal.localeCompare(bVal, "ms", { numeric: true });
+      const cmp = aVal.localeCompare(bVal, lang === "ms" ? "ms" : "en", { numeric: true });
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [filteredData, sortKey, sortDir]);
+  }, [filteredData, sortKey, sortDir, lang]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
@@ -163,6 +168,8 @@ export default function Dashboard() {
     });
   };
 
+  const toggleLang = () => setLang((prev) => (prev === "en" ? "ms" : "en"));
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Header Bar */}
@@ -173,15 +180,24 @@ export default function Dashboard() {
             <div>
               <h1 className="text-lg font-bold">SMPPI Data Extractor</h1>
               <p className="text-xs text-slate-400">
-                Cari & Eksport Data dari Pelbagai Pangkalan Data
+                {t("subtitle", lang)}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">Jumlah sumber data:</span>
-            <span className="bg-blue-600 px-2 py-0.5 rounded-full text-xs font-medium">
-              {dataSources.length}
-            </span>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleLang}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors text-sm"
+            >
+              <Globe size={16} className="text-blue-400" />
+              <span className="font-medium">{lang === "en" ? "BM" : "EN"}</span>
+            </button>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-slate-400">{t("totalSources", lang)}</span>
+              <span className="bg-blue-600 px-2 py-0.5 rounded-full text-xs font-medium">
+                {dataSources.length}
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -192,7 +208,7 @@ export default function Dashboard() {
           {/* Data source selector row */}
           <div className="mb-5">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              Pilih Sumber Data
+              {t("selectSource", lang)}
             </label>
             <div className="flex flex-wrap gap-2">
               {dataSources.map((ds) => (
@@ -230,7 +246,7 @@ export default function Dashboard() {
               />
               <input
                 type="text"
-                placeholder={`Cari dalam ${source.label}...`}
+                placeholder={`${t("searchIn", lang)} ${source.label}...`}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -256,7 +272,7 @@ export default function Dashboard() {
               }`}
             >
               <SlidersHorizontal size={16} />
-              Tapis
+              {t("filter", lang)}
               {activeFilterCount > 0 && (
                 <span className="bg-blue-600 text-white text-xs rounded-full px-1.5 py-0.5">
                   {activeFilterCount}
@@ -272,7 +288,7 @@ export default function Dashboard() {
               }`}
             >
               <FileSpreadsheet size={16} />
-              Lajur
+              {t("columns", lang)}
             </button>
           </div>
 
@@ -296,7 +312,7 @@ export default function Dashboard() {
                         }}
                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="">Semua</option>
+                        <option value="">{t("all", lang)}</option>
                         {filterOptions[col]?.map((val) => (
                           <option key={val} value={val}>
                             {val}
@@ -312,12 +328,12 @@ export default function Dashboard() {
               {source.dateColumns.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-slate-50">
                   <label className="block text-xs font-medium text-slate-500 mb-2">
-                    Tapis Mengikut Tarikh
+                    {t("filterByDate", lang)}
                   </label>
                   <div className="flex flex-wrap gap-3 items-end">
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">
-                        Lajur Tarikh
+                        {t("dateColumn", lang)}
                       </label>
                       <select
                         value={selectedDateCol}
@@ -327,7 +343,7 @@ export default function Dashboard() {
                         }}
                         className="border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="">-- Pilih lajur --</option>
+                        <option value="">{t("selectColumn", lang)}</option>
                         {source.dateColumns.map((dc) => {
                           const label = source.columns.find((c) => c.key === dc)?.label || dc;
                           return (
@@ -340,7 +356,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">
-                        Dari
+                        {t("from", lang)}
                       </label>
                       <input
                         type="date"
@@ -354,7 +370,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <label className="block text-xs text-slate-400 mb-1">
-                        Hingga
+                        {t("to", lang)}
                       </label>
                       <input
                         type="date"
@@ -378,7 +394,7 @@ export default function Dashboard() {
                     className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
                   >
                     <RotateCcw size={14} />
-                    Set Semula Semua Penapis
+                    {t("resetAllFilters", lang)}
                   </button>
                 </div>
               )}
@@ -390,13 +406,13 @@ export default function Dashboard() {
             <div className="mt-4 pt-4 border-t border-slate-100">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-slate-500">
-                  Pilih lajur untuk dipaparkan:
+                  {t("selectColumnsToDisplay", lang)}
                 </span>
                 <button
                   onClick={() => setVisibleColumns([])}
                   className="text-xs text-blue-600 hover:text-blue-700"
                 >
-                  Papar Semua
+                  {t("showAll", lang)}
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -428,13 +444,13 @@ export default function Dashboard() {
           <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-slate-800">
-                Keputusan Carian
+                {t("searchResults", lang)}
               </h2>
               <p className="text-sm text-slate-500">
-                {sortedData.length} daripada {source.data.length} rekod
+                {sortedData.length} {t("of", lang)} {source.data.length} {t("records", lang)}
                 {activeFilterCount > 0 && (
                   <span className="ml-1 text-blue-600">
-                    ({activeFilterCount} penapis aktif)
+                    ({activeFilterCount} {t("activeFilters", lang)})
                   </span>
                 )}
               </p>
@@ -445,7 +461,7 @@ export default function Dashboard() {
                 className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors flex items-center gap-2"
               >
                 <Download size={16} />
-                Eksport Semua ({source.data.length})
+                {t("exportAll", lang)} ({source.data.length})
               </button>
               {activeFilterCount > 0 && (
                 <button
@@ -453,7 +469,7 @@ export default function Dashboard() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors flex items-center gap-2"
                 >
                   <Download size={16} />
-                  Eksport Ditapis ({sortedData.length})
+                  {t("exportFiltered", lang)} ({sortedData.length})
                 </button>
               )}
             </div>
@@ -495,9 +511,9 @@ export default function Dashboard() {
                     >
                       <div className="text-slate-400">
                         <Search size={32} className="mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Tiada rekod ditemui</p>
+                        <p className="text-sm">{t("noRecords", lang)}</p>
                         <p className="text-xs mt-1">
-                          Cuba ubah carian atau penapis anda
+                          {t("tryChanging", lang)}
                         </p>
                       </div>
                     </td>
@@ -527,7 +543,7 @@ export default function Dashboard() {
           {/* Pagination */}
           <div className="px-6 py-3 border-t border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span>Baris per halaman:</span>
+              <span>{t("rowsPerPage", lang)}</span>
               <select
                 value={pageSize}
                 onChange={(e) => {
@@ -545,7 +561,7 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center gap-1">
               <span className="text-sm text-slate-600 mr-2">
-                Halaman {page + 1} / {totalPages}
+                {t("page", lang)} {page + 1} / {totalPages}
               </span>
               <button
                 onClick={() => setPage(0)}

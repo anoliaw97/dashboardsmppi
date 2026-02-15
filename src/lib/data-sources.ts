@@ -1,4 +1,5 @@
 import { ColumnDef } from "./types";
+import { Lang, t, colLabel, TranslationKey } from "./translations";
 import {
   pensyarahData,
   pascasiswazahData,
@@ -20,28 +21,26 @@ export interface DataSourceConfig {
   dateColumns: string[];
 }
 
-export const dataSources: DataSourceConfig[] = [
+interface DataSourceRaw {
+  id: string;
+  labelKey: TranslationKey;
+  descKey: TranslationKey;
+  columnKeys: string[];
+  data: AnyRecord[];
+  filterColumns: string[];
+  dateColumns: string[];
+}
+
+const dataSourcesRaw: DataSourceRaw[] = [
   {
     id: "pensyarah",
-    label: "Data Umum Pensyarah",
-    description: "Profil pensyarah - maklumat peribadi, jawatan, jabatan, gred",
-    columns: [
-      { key: "User_Name", label: "Nama" },
-      { key: "User_Ic", label: "No. IC" },
-      { key: "User_NoPer", label: "No. Pekerja" },
-      { key: "User_Salutation", label: "Gelaran" },
-      { key: "User_Position", label: "Jawatan" },
-      { key: "User_Dept", label: "Jabatan" },
-      { key: "User_Email", label: "Emel" },
-      { key: "User_Gender", label: "Jantina" },
-      { key: "User_Gred", label: "Gred" },
-      { key: "User_HP", label: "No. HP" },
-      { key: "User_SLantikan", label: "Tarikh Lantikan" },
-      { key: "User_TmtKontrak", label: "Tamat Kontrak" },
-      { key: "PTJ_kod", label: "Kod PTJ" },
-      { key: "Kumpulan", label: "Kumpulan" },
-      { key: "Kategori", label: "Kategori" },
-      { key: "Status", label: "Status" },
+    labelKey: "ds.pensyarah.label",
+    descKey: "ds.pensyarah.desc",
+    columnKeys: [
+      "User_Name", "User_Ic", "User_NoPer", "User_Salutation",
+      "User_Position", "User_Dept", "User_Email", "User_Gender",
+      "User_Gred", "User_HP", "User_SLantikan", "User_TmtKontrak",
+      "PTJ_kod", "Kumpulan", "Kategori", "Status",
     ],
     data: pensyarahData,
     filterColumns: ["Status", "User_Dept", "Kategori", "User_Gender", "User_Gred"],
@@ -49,24 +48,13 @@ export const dataSources: DataSourceConfig[] = [
   },
   {
     id: "pascasiswazah",
-    label: "Data Pelajar Pascasiswazah",
-    description: "Pelajar pascasiswazah - program, penyelia, geran, output",
-    columns: [
-      { key: "StudentID", label: "ID Pelajar" },
-      { key: "StudentName", label: "Nama Pelajar" },
-      { key: "StudentIC", label: "No. IC" },
-      { key: "Programme", label: "Program" },
-      { key: "Faculty", label: "Fakulti" },
-      { key: "Department", label: "Jabatan" },
-      { key: "SupervisorName", label: "Penyelia" },
-      { key: "CoSupervisor", label: "Penyelia Bersama" },
-      { key: "ResearchTitle", label: "Tajuk Penyelidikan" },
-      { key: "EnrollmentDate", label: "Tarikh Daftar" },
-      { key: "ExpectedCompletion", label: "Jangka Siap" },
-      { key: "Status", label: "Status" },
-      { key: "FundingSource", label: "Sumber Dana" },
-      { key: "GrantRef", label: "Ref. Geran" },
-      { key: "PublicationCount", label: "Bil. Penerbitan" },
+    labelKey: "ds.pascasiswazah.label",
+    descKey: "ds.pascasiswazah.desc",
+    columnKeys: [
+      "StudentID", "StudentName", "StudentIC", "Programme", "Faculty",
+      "Department", "SupervisorName", "CoSupervisor", "ResearchTitle",
+      "EnrollmentDate", "ExpectedCompletion", "Status", "FundingSource",
+      "GrantRef", "PublicationCount",
     ],
     data: pascasiswazahData,
     filterColumns: ["Status", "Programme", "Faculty", "FundingSource"],
@@ -74,23 +62,12 @@ export const dataSources: DataSourceConfig[] = [
   },
   {
     id: "penyelidikan",
-    label: "Data Penyelidikan",
-    description: "Pangkalan data penyelidikan - kata kunci, URL, penyelidik",
-    columns: [
-      { key: "DbName", label: "Nama Pangkalan Data" },
-      { key: "DbDesc", label: "Penerangan" },
-      { key: "Keyword", label: "Kata Kunci" },
-      { key: "URL", label: "URL" },
-      { key: "ContactName", label: "Nama Hubungan" },
-      { key: "ContactPTJ", label: "PTJ" },
-      { key: "CreatedBy", label: "Dibuat Oleh" },
-      { key: "CreateDate", label: "Tarikh Cipta" },
-      { key: "LastUpdate", label: "Kemaskini Terakhir" },
-      { key: "ApproveBy", label: "Diluluskan Oleh" },
-      { key: "ApproveDate", label: "Tarikh Lulus" },
-      { key: "Active", label: "Aktif" },
-      { key: "Status", label: "Status" },
-      { key: "Remarks", label: "Catatan" },
+    labelKey: "ds.penyelidikan.label",
+    descKey: "ds.penyelidikan.desc",
+    columnKeys: [
+      "DbName", "DbDesc", "Keyword", "URL", "ContactName", "ContactPTJ",
+      "CreatedBy", "CreateDate", "LastUpdate", "ApproveBy", "ApproveDate",
+      "Active", "Status", "Remarks",
     ],
     data: penyelidikanData,
     filterColumns: ["Status", "Active", "ContactPTJ"],
@@ -98,26 +75,13 @@ export const dataSources: DataSourceConfig[] = [
   },
   {
     id: "harta-intelek",
-    label: "Data Harta Intelek",
-    description: "Paten, hak cipta, cap dagangan, maklumat komersial",
-    columns: [
-      { key: "IDIntellectual", label: "ID" },
-      { key: "ProjectID", label: "ID Projek" },
-      { key: "IntellectualProperty", label: "Jenis IP" },
-      { key: "ProductName", label: "Nama Produk" },
-      { key: "CommercialPotential", label: "Potensi Komersial" },
-      { key: "Country", label: "Negara" },
-      { key: "IntellectualStatusID", label: "Status" },
-      { key: "DateFile", label: "Tarikh Fail" },
-      { key: "DatePass", label: "Tarikh Lulus" },
-      { key: "PatentNumber", label: "No. Paten" },
-      { key: "Income", label: "Pendapatan (RM)" },
-      { key: "CertificateDate", label: "Tarikh Sijil" },
-      { key: "ValidDate", label: "Tarikh Sah" },
-      { key: "Agent", label: "Agen" },
-      { key: "ReferenceNo", label: "No. Rujukan" },
-      { key: "UpdatedBy", label: "Dikemaskini Oleh" },
-      { key: "UpdateDate", label: "Tarikh Kemaskini" },
+    labelKey: "ds.harta-intelek.label",
+    descKey: "ds.harta-intelek.desc",
+    columnKeys: [
+      "IDIntellectual", "ProjectID", "IntellectualProperty", "ProductName",
+      "CommercialPotential", "Country", "IntellectualStatusID", "DateFile",
+      "DatePass", "PatentNumber", "Income", "CertificateDate", "ValidDate",
+      "Agent", "ReferenceNo", "UpdatedBy", "UpdateDate",
     ],
     data: hartaIntelekData,
     filterColumns: ["IntellectualProperty", "IntellectualStatusID", "CommercialPotential", "Agent"],
@@ -125,25 +89,33 @@ export const dataSources: DataSourceConfig[] = [
   },
   {
     id: "penyeliaan",
-    label: "Data Penyeliaan",
-    description: "Rekod penyeliaan - penyelia, pelajar, peranan, status",
-    columns: [
-      { key: "SupervisionID", label: "ID" },
-      { key: "SupervisorName", label: "Nama Penyelia" },
-      { key: "StudentName", label: "Nama Pelajar" },
-      { key: "Programme", label: "Program" },
-      { key: "ResearchTitle", label: "Tajuk Penyelidikan" },
-      { key: "Role", label: "Peranan" },
-      { key: "StartDate", label: "Tarikh Mula" },
-      { key: "EndDate", label: "Tarikh Tamat" },
-      { key: "Status", label: "Status" },
-      { key: "Faculty", label: "Fakulti" },
-      { key: "Department", label: "Jabatan" },
-      { key: "VivaDate", label: "Tarikh Viva" },
-      { key: "Result", label: "Keputusan" },
+    labelKey: "ds.penyeliaan.label",
+    descKey: "ds.penyeliaan.desc",
+    columnKeys: [
+      "SupervisionID", "SupervisorName", "StudentName", "Programme",
+      "ResearchTitle", "Role", "StartDate", "EndDate", "Status",
+      "Faculty", "Department", "VivaDate", "Result",
     ],
     data: penyeliaanData,
     filterColumns: ["Status", "Role", "Faculty", "Programme"],
     dateColumns: ["StartDate", "EndDate", "VivaDate"],
   },
 ];
+
+export function getDataSources(lang: Lang): DataSourceConfig[] {
+  return dataSourcesRaw.map((raw) => ({
+    id: raw.id,
+    label: t(raw.labelKey, lang),
+    description: t(raw.descKey, lang),
+    columns: raw.columnKeys.map((key) => ({
+      key,
+      label: colLabel(key, lang),
+    })),
+    data: raw.data,
+    filterColumns: raw.filterColumns,
+    dateColumns: raw.dateColumns,
+  }));
+}
+
+// Default export for backward compatibility
+export const dataSources: DataSourceConfig[] = getDataSources("en");
