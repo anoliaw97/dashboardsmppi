@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import {
   Search,
   Download,
@@ -13,11 +13,22 @@ import {
   X,
   RotateCcw,
   Filter,
+  Sparkles,
+  Play,
+  Shield,
+  Loader2,
+  BookOpen,
 } from "lucide-react";
 import { DataSourceConfig } from "@/lib/data-sources";
 import { exportToExcel } from "@/lib/export-excel";
 import { ColumnDef } from "@/lib/types";
 import { Lang, t } from "@/lib/translations";
+import {
+  generateSql,
+  executeMockQuery,
+  generateExplanation,
+  sampleQueries,
+} from "@/lib/ai-helpers";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>;
@@ -27,15 +38,120 @@ interface DataExplorerProps {
   lang: Lang;
 }
 
-export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
-  const [selectedSource, setSelectedSource] = useState<string>(dataSources[0].id);
+// Explain popover component
+function ExplainPopover({
+  value,
+  columnLabel,
+  lang,
+  position,
+  onClose,
+}: {
+  value: string;
+  columnLabel: string;
+  lang: Lang;
+  position: { top: number; left: number };
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  const handleExplain = async () => {
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 400));
+    setExplanation(generateExplanation(value, columnLabel, lang));
+    setLoading(false);
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-80"
+      style={{ top: position.top, left: position.left }}
+    >
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-slate-500">{columnLabel}</p>
+          <p className="text-sm font-semibold text-slate-800 truncate">
+            {value}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          className="ml-2 text-slate-400 hover:text-slate-600 flex-shrink-0"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {!explanation && !loading && (
+        <button
+          onClick={handleExplain}
+          className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <BookOpen size={14} />
+          {lang === "en" ? "Explain this value" : "Terangkan nilai ini"}
+        </button>
+      )}
+
+      {loading && (
+        <div className="flex items-center justify-center gap-2 py-2 text-purple-600">
+          <Loader2 size={14} className="animate-spin" />
+          <span className="text-xs">{t("aiProcessing", lang)}</span>
+        </div>
+      )}
+
+      {explanation && (
+        <div className="bg-purple-50 rounded-lg p-3 text-xs text-slate-700 border border-purple-100 leading-relaxed">
+          {explanation}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function DataExplorer({
+  dataSources,
+  lang,
+}: DataExplorerProps) {
+  const [selectedSource, setSelectedSource] = useState<string>(
+    dataSources[0].id
+  );
   const [search, setSearch] = useState("");
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>(
+    {}
+  );
   const [sortKey, setSortKey] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [showColumnFilters, setShowColumnFilters] = useState(true);
+
+  // AI Query Builder state
+  const [showAiQuery, setShowAiQuery] = useState(false);
+  const [queryPrompt, setQueryPrompt] = useState("");
+  const [generatedSql, setGeneratedSql] = useState("");
+  const [sqlExplanation, setSqlExplanation] = useState("");
+  const [queryResults, setQueryResults] = useState<AnyRecord[] | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showQueryResults, setShowQueryResults] = useState(false);
+
+  // Explain popover state
+  const [explainPopover, setExplainPopover] = useState<{
+    value: string;
+    columnLabel: string;
+    position: { top: number; left: number };
+  } | null>(null);
 
   const source: DataSourceConfig =
     dataSources.find((s) => s.id === selectedSource) || dataSources[0];
@@ -46,18 +162,24 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
     setColumnFilters({});
     setSortKey("");
     setPage(0);
+    setGeneratedSql("");
+    setQueryResults(null);
+    setQueryPrompt("");
   }, []);
 
   const displayColumns: ColumnDef[] = source.columns;
 
-  // Get unique values for each column (for dropdown filters)
+  // Unique values per column for dropdown vs text filter
   const columnUniqueValues = useMemo(() => {
     const result: Record<string, string[]> = {};
     source.columns.forEach((col) => {
       const values = [
-        ...new Set(source.data.map((row) => String(row[col.key] ?? "")).filter(Boolean)),
+        ...new Set(
+          source.data
+            .map((row) => String(row[col.key] ?? ""))
+            .filter(Boolean)
+        ),
       ].sort();
-      // Use dropdown if 20 or fewer unique values, otherwise text input
       if (values.length <= 20) {
         result[col.key] = values;
       }
@@ -65,11 +187,10 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
     return result;
   }, [source]);
 
-  // Apply all filters
+  // Filter data
   const filteredData: AnyRecord[] = useMemo(() => {
     let result = source.data as AnyRecord[];
 
-    // Global text search
     if (search) {
       const lower = search.toLowerCase();
       result = result.filter((row) =>
@@ -79,11 +200,9 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
       );
     }
 
-    // Per-column filters
     Object.entries(columnFilters).forEach(([key, value]) => {
       if (!value) return;
       const lower = value.toLowerCase();
-      // If it's a dropdown column, exact match; otherwise substring
       if (columnUniqueValues[key]) {
         result = result.filter((row) => String(row[key] ?? "") === value);
       } else {
@@ -145,6 +264,54 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
     setPage(0);
   };
 
+  // AI handlers
+  const samples = useMemo(
+    () => sampleQueries[selectedSource] || [],
+    [selectedSource]
+  );
+
+  const handleGenerate = async () => {
+    if (!queryPrompt.trim()) return;
+    setAiLoading(true);
+    setQueryResults(null);
+    setShowQueryResults(false);
+    await new Promise((r) => setTimeout(r, 600));
+    const result = generateSql(queryPrompt, source);
+    setGeneratedSql(result.sql);
+    setSqlExplanation(result.explanation);
+    setAiLoading(false);
+  };
+
+  const handleRunQuery = async () => {
+    if (!generatedSql) return;
+    setAiLoading(true);
+    await new Promise((r) => setTimeout(r, 400));
+    const results = executeMockQuery(generatedSql, source);
+    setQueryResults(results);
+    setShowQueryResults(true);
+    setAiLoading(false);
+  };
+
+  // Cell click handler for explain popover
+  const handleCellClick = (
+    e: React.MouseEvent,
+    value: string,
+    columnLabel: string
+  ) => {
+    if (!value || value === "-") return;
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const popoverWidth = 320;
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth) {
+      left = window.innerWidth - popoverWidth - 16;
+    }
+    let top = rect.bottom + 4;
+    if (top + 200 > window.innerHeight) {
+      top = rect.top - 200;
+    }
+    setExplainPopover({ value, columnLabel, position: { top, left } });
+  };
+
   return (
     <div className="space-y-4">
       {/* Data source tabs */}
@@ -179,8 +346,8 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
         <p className="text-xs text-slate-400 mt-2">{source.description}</p>
       </div>
 
-      {/* Search bar + controls */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+      {/* Search bar + AI toggle + controls */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
         <div className="flex gap-3 items-center">
           <div className="relative flex-1">
             <Search
@@ -222,6 +389,17 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
               </span>
             )}
           </button>
+          <button
+            onClick={() => setShowAiQuery(!showAiQuery)}
+            className={`px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 transition-all ${
+              showAiQuery
+                ? "bg-purple-50 border-purple-300 text-purple-700"
+                : "border-slate-300 text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <Sparkles size={16} />
+            AI
+          </button>
           {activeFilterCount > 0 && (
             <button
               onClick={resetAll}
@@ -232,6 +410,153 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
             </button>
           )}
         </div>
+
+        {/* AI Query Builder (collapsible) */}
+        {showAiQuery && (
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Shield size={12} />
+              <span>{t("aiReadOnlyNote", lang)}</span>
+            </div>
+            <div className="flex gap-3 items-start">
+              <textarea
+                rows={2}
+                placeholder={t("aiQueryPlaceholder", lang)}
+                value={queryPrompt}
+                onChange={(e) => setQueryPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGenerate();
+                  }
+                }}
+                className="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              />
+              <button
+                onClick={handleGenerate}
+                disabled={!queryPrompt.trim() || aiLoading}
+                className="px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {aiLoading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+                {t("aiGenerate", lang)}
+              </button>
+            </div>
+
+            {/* Sample queries */}
+            {!generatedSql && samples.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="text-xs text-slate-500 self-center">
+                  {t("aiSampleQueries", lang)}
+                </span>
+                {samples.map((sample, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setQueryPrompt(sample[lang])}
+                    className="px-3 py-1.5 bg-purple-50 text-purple-700 rounded-lg text-xs hover:bg-purple-100 transition-colors border border-purple-200"
+                  >
+                    {sample[lang]}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Generated SQL + Run */}
+            {generatedSql && (
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 mb-1">
+                    {t("aiGeneratedSql", lang)}
+                  </p>
+                  <pre className="bg-slate-900 text-green-400 p-3 rounded-xl text-xs font-mono overflow-x-auto">
+                    {generatedSql}
+                  </pre>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {sqlExplanation}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleRunQuery}
+                    disabled={aiLoading}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {aiLoading ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Play size={14} />
+                    )}
+                    {t("aiRunQuery", lang)}
+                  </button>
+                  {queryResults !== null && (
+                    <button
+                      onClick={() => setShowQueryResults(!showQueryResults)}
+                      className="text-sm text-slate-600 flex items-center gap-1"
+                    >
+                      {t("aiResults", lang)} ({queryResults.length}{" "}
+                      {t("records", lang)})
+                      {showQueryResults ? (
+                        <ChevronUp size={14} />
+                      ) : (
+                        <ChevronDown size={14} />
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Inline query results */}
+                {showQueryResults && queryResults && queryResults.length > 0 && (
+                  <div className="overflow-x-auto border border-slate-200 rounded-xl max-h-64 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="sticky top-0">
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500">
+                            #
+                          </th>
+                          {source.columns.map((col) => (
+                            <th
+                              key={col.key}
+                              className="px-3 py-2 text-left text-xs font-semibold text-slate-500 whitespace-nowrap"
+                            >
+                              {col.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {queryResults.slice(0, 50).map((row, idx) => (
+                          <tr key={idx} className="hover:bg-purple-50/50">
+                            <td className="px-3 py-1.5 text-xs text-slate-400">
+                              {idx + 1}
+                            </td>
+                            {source.columns.map((col) => (
+                              <td
+                                key={col.key}
+                                className="px-3 py-1.5 text-xs text-slate-700 max-w-xs truncate"
+                              >
+                                {String(row[col.key] ?? "-")}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {showQueryResults &&
+                  queryResults &&
+                  queryResults.length === 0 && (
+                    <p className="text-sm text-slate-500 italic">
+                      {t("noRecords", lang)}
+                    </p>
+                  )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Results table */}
@@ -250,6 +575,11 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
                   ({activeFilterCount} {t("activeFilters", lang)})
                 </span>
               )}
+              <span className="ml-2 text-xs text-purple-500 italic">
+                {lang === "en"
+                  ? "Click any cell to explain"
+                  : "Klik mana-mana sel untuk terangkan"}
+              </span>
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -272,11 +602,10 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
           </div>
         </div>
 
-        {/* Table with Excel-like column filters */}
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              {/* Column headers */}
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th className="px-3 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-12">
                   #
@@ -299,7 +628,7 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
                   </th>
                 ))}
               </tr>
-              {/* Per-column filter row (Excel-like) */}
+              {/* Per-column filter row */}
               {showColumnFilters && (
                 <tr className="bg-blue-50/50 border-b border-slate-200">
                   <th className="px-3 py-2">
@@ -379,15 +708,21 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
                     <td className="px-3 py-3 text-sm text-slate-400">
                       {page * pageSize + idx + 1}
                     </td>
-                    {displayColumns.map((col) => (
-                      <td
-                        key={col.key}
-                        className="px-3 py-3 text-sm text-slate-700 max-w-xs truncate"
-                        title={String(row[col.key] ?? "")}
-                      >
-                        {String(row[col.key] ?? "-")}
-                      </td>
-                    ))}
+                    {displayColumns.map((col) => {
+                      const cellVal = String(row[col.key] ?? "-");
+                      return (
+                        <td
+                          key={col.key}
+                          className="px-3 py-3 text-sm text-slate-700 max-w-xs truncate cursor-pointer hover:text-purple-700 hover:underline decoration-dotted"
+                          title={cellVal}
+                          onClick={(e) =>
+                            handleCellClick(e, cellVal, col.label)
+                          }
+                        >
+                          {cellVal}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))
               )}
@@ -449,6 +784,17 @@ export default function DataExplorer({ dataSources, lang }: DataExplorerProps) {
           </div>
         </div>
       </div>
+
+      {/* Explain Popover */}
+      {explainPopover && (
+        <ExplainPopover
+          value={explainPopover.value}
+          columnLabel={explainPopover.columnLabel}
+          lang={lang}
+          position={explainPopover.position}
+          onClose={() => setExplainPopover(null)}
+        />
+      )}
     </div>
   );
 }
