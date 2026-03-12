@@ -478,6 +478,53 @@ const translations = {
   "col.EndDate": { en: "End Date", ms: "Tarikh Tamat" },
   "col.VivaDate": { en: "Viva Date", ms: "Tarikh Viva" },
   "col.Result": { en: "Result", ms: "Keputusan" },
+
+  // Join Tables
+  joinTables: { en: "Join Tables", ms: "Gabung Jadual" },
+  joinBuilder: { en: "Join Builder", ms: "Pembina Gabungan" },
+  joinSubtitle: {
+    en: "Combine data from multiple sources into a unified table",
+    ms: "Gabungkan data dari pelbagai sumber ke dalam jadual bersatu",
+  },
+  joinSelectSources: { en: "Select sources to join:", ms: "Pilih sumber untuk digabung:" },
+  joinColumn: { en: "Join on column:", ms: "Gabung pada lajur:" },
+  joinType: { en: "Join type:", ms: "Jenis gabungan:" },
+  joinInner: { en: "Inner Join (matching only)", ms: "Gabungan Dalam (padanan sahaja)" },
+  joinLeft: { en: "Left Join (keep all from first)", ms: "Gabungan Kiri (simpan semua dari pertama)" },
+  joinFull: { en: "Full Join (keep all)", ms: "Gabungan Penuh (simpan semua)" },
+  joinPreview: { en: "Preview Join", ms: "Pratonton Gabungan" },
+  joinSave: { en: "Save Table", ms: "Simpan Jadual" },
+  joinSaveName: { en: "Table name:", ms: "Nama jadual:" },
+  joinSaved: { en: "Saved Tables", ms: "Jadual Tersimpan" },
+  joinNoSaved: { en: "No saved tables yet", ms: "Belum ada jadual tersimpan" },
+  joinLoad: { en: "Load", ms: "Muat" },
+  joinDelete: { en: "Delete", ms: "Padam" },
+  joinResult: { en: "Joined Result", ms: "Hasil Gabungan" },
+  joinSelectMin2: { en: "Select at least 2 sources", ms: "Pilih sekurang-kurangnya 2 sumber" },
+  joinNoCommon: { en: "No common columns found", ms: "Tiada lajur sepadan ditemui" },
+  joinRecords: { en: "records in joined table", ms: "rekod dalam jadual gabungan" },
+
+  // Visualization
+  vizTitle: { en: "Data Visualization", ms: "Visualisasi Data" },
+  vizSubtitle: {
+    en: "Create charts from the current data view",
+    ms: "Cipta carta dari paparan data semasa",
+  },
+  vizChartType: { en: "Chart type:", ms: "Jenis carta:" },
+  vizBar: { en: "Bar Chart", ms: "Carta Bar" },
+  vizLine: { en: "Line Chart", ms: "Carta Garis" },
+  vizPie: { en: "Pie Chart", ms: "Carta Pai" },
+  vizScatter: { en: "Scatter Plot", ms: "Plot Serakan" },
+  vizXAxis: { en: "X-Axis / Category:", ms: "Paksi-X / Kategori:" },
+  vizYAxis: { en: "Y-Axis / Value:", ms: "Paksi-Y / Nilai:" },
+  vizAggregation: { en: "Aggregation:", ms: "Pengagregatan:" },
+  vizCount: { en: "Count", ms: "Bilangan" },
+  vizSum: { en: "Sum", ms: "Jumlah" },
+  vizAvg: { en: "Average", ms: "Purata" },
+  vizAiSuggest: { en: "AI Suggest", ms: "Cadangan AI" },
+  vizGenerate: { en: "Generate Chart", ms: "Jana Carta" },
+  vizSelectColumn: { en: "-- Select column --", ms: "-- Pilih lajur --" },
+  vizNoData: { en: "Configure and generate a chart above", ms: "Konfigurasikan dan jana carta di atas" },
 } as const;
 
 export type TranslationKey = keyof typeof translations;

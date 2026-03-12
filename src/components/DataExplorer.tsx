@@ -14,6 +14,8 @@ import {
   RotateCcw,
   Filter,
   Sparkles,
+  Merge,
+  BarChart3,
   Play,
   Shield,
   Loader2,
@@ -29,6 +31,10 @@ import {
   generateExplanation,
   sampleQueries,
 } from "@/lib/ai-helpers";
+import JoinBuilder from "./JoinBuilder";
+import dynamic from "next/dynamic";
+
+const Visualization = dynamic(() => import("./Visualization"), { ssr: false });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>;
@@ -153,6 +159,13 @@ export default function DataExplorer({
     position: { top: number; left: number };
   } | null>(null);
 
+  // Join / custom data state
+  const [showJoinBuilder, setShowJoinBuilder] = useState(false);
+  const [customData, setCustomData] = useState<AnyRecord[] | null>(null);
+  const [customColumns, setCustomColumns] = useState<ColumnDef[]>([]);
+  const [customLabel, setCustomLabel] = useState("");
+  const [showVisualization, setShowVisualization] = useState(false);
+
   const source: DataSourceConfig =
     dataSources.find((s) => s.id === selectedSource) || dataSources[0];
 
@@ -165,17 +178,41 @@ export default function DataExplorer({
     setGeneratedSql("");
     setQueryResults(null);
     setQueryPrompt("");
+    setCustomData(null);
+    setCustomColumns([]);
+    setCustomLabel("");
   }, []);
 
-  const displayColumns: ColumnDef[] = source.columns;
+  // Active data: joined/custom or current source
+  const activeData: AnyRecord[] = customData ?? (source.data as AnyRecord[]);
+  const displayColumns: ColumnDef[] = customData ? customColumns : source.columns;
+
+  const handleLoadJoin = useCallback((data: AnyRecord[], columns: ColumnDef[], label: string) => {
+    setCustomData(data);
+    setCustomColumns(columns);
+    setCustomLabel(label);
+    setSearch("");
+    setColumnFilters({});
+    setSortKey("");
+    setPage(0);
+    setShowJoinBuilder(false);
+  }, []);
+
+  const handleClearCustom = useCallback(() => {
+    setCustomData(null);
+    setCustomColumns([]);
+    setCustomLabel("");
+    setSearch("");
+    setColumnFilters({});
+  }, []);
 
   // Unique values per column for dropdown vs text filter
   const columnUniqueValues = useMemo(() => {
     const result: Record<string, string[]> = {};
-    source.columns.forEach((col) => {
+    displayColumns.forEach((col) => {
       const values = [
         ...new Set(
-          source.data
+          activeData
             .map((row) => String(row[col.key] ?? ""))
             .filter(Boolean)
         ),
@@ -185,16 +222,16 @@ export default function DataExplorer({
       }
     });
     return result;
-  }, [source]);
+  }, [activeData, displayColumns]);
 
   // Filter data
   const filteredData: AnyRecord[] = useMemo(() => {
-    let result = source.data as AnyRecord[];
+    let result = activeData;
 
     if (search) {
       const lower = search.toLowerCase();
       result = result.filter((row) =>
-        source.columns.some((col) =>
+        displayColumns.some((col) =>
           String(row[col.key] ?? "").toLowerCase().includes(lower)
         )
       );
@@ -242,11 +279,15 @@ export default function DataExplorer({
   };
 
   const handleExportAll = () => {
-    exportToExcel(source.data as AnyRecord[], `${source.id}_all`, source.label);
+    const label = customLabel || source.label;
+    const id = customLabel ? "joined" : source.id;
+    exportToExcel(activeData, `${id}_all`, label);
   };
 
   const handleExportFiltered = () => {
-    exportToExcel(sortedData, `${source.id}_filtered`, source.label);
+    const label = customLabel || source.label;
+    const id = customLabel ? "joined" : source.id;
+    exportToExcel(sortedData, `${id}_filtered`, label);
   };
 
   const activeFilterCount =
@@ -344,7 +385,34 @@ export default function DataExplorer({
           ))}
         </div>
         <p className="text-xs text-slate-400 mt-2">{source.description}</p>
+
+        {/* Custom/joined data indicator */}
+        {customData && (
+          <div className="mt-3 flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
+            <Merge size={16} className="text-orange-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-orange-800 truncate">{customLabel}</p>
+              <p className="text-xs text-orange-600">{customData.length} {lang === "en" ? "joined records" : "rekod digabungkan"}</p>
+            </div>
+            <button
+              onClick={handleClearCustom}
+              className="text-xs text-orange-700 hover:text-orange-900 flex items-center gap-1 flex-shrink-0"
+            >
+              <X size={14} />
+              {lang === "en" ? "Clear" : "Bersih"}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Join Builder (collapsible) */}
+      {showJoinBuilder && (
+        <JoinBuilder
+          dataSources={dataSources}
+          lang={lang}
+          onLoadJoin={handleLoadJoin}
+        />
+      )}
 
       {/* Search bar + AI toggle + controls */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
@@ -399,6 +467,30 @@ export default function DataExplorer({
           >
             <Sparkles size={16} />
             AI
+          </button>
+          <button
+            onClick={() => setShowJoinBuilder(!showJoinBuilder)}
+            className={`px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 transition-all ${
+              showJoinBuilder
+                ? "bg-orange-50 border-orange-300 text-orange-700"
+                : "border-slate-300 text-slate-600 hover:bg-slate-50"
+            }`}
+            title={lang === "en" ? "Join Tables" : "Gabung Jadual"}
+          >
+            <Merge size={16} />
+            {lang === "en" ? "Join" : "Gabung"}
+          </button>
+          <button
+            onClick={() => setShowVisualization(!showVisualization)}
+            className={`px-4 py-3 rounded-xl border text-sm font-medium flex items-center gap-2 transition-all ${
+              showVisualization
+                ? "bg-teal-50 border-teal-300 text-teal-700"
+                : "border-slate-300 text-slate-600 hover:bg-slate-50"
+            }`}
+            title={lang === "en" ? "Visualize" : "Visualisasi"}
+          >
+            <BarChart3 size={16} />
+            {lang === "en" ? "Chart" : "Carta"}
           </button>
           {activeFilterCount > 0 && (
             <button
@@ -568,7 +660,7 @@ export default function DataExplorer({
               {t("searchResults", lang)}
             </h2>
             <p className="text-sm text-slate-500">
-              {sortedData.length} {t("of", lang)} {source.data.length}{" "}
+              {sortedData.length} {t("of", lang)} {activeData.length}{" "}
               {t("records", lang)}
               {activeFilterCount > 0 && (
                 <span className="ml-1 text-blue-600">
@@ -588,7 +680,7 @@ export default function DataExplorer({
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors flex items-center gap-2"
             >
               <Download size={16} />
-              {t("exportAll", lang)} ({source.data.length})
+              {t("exportAll", lang)} ({activeData.length})
             </button>
             {activeFilterCount > 0 && (
               <button
@@ -784,6 +876,16 @@ export default function DataExplorer({
           </div>
         </div>
       </div>
+
+      {/* Visualization Panel */}
+      {showVisualization && sortedData.length > 0 && (
+        <Visualization
+          data={sortedData}
+          columns={displayColumns}
+          lang={lang}
+          sourceLabel={customLabel || source.label}
+        />
+      )}
 
       {/* Explain Popover */}
       {explainPopover && (
