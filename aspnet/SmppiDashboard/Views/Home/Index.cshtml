@@ -1,0 +1,352 @@
+@model SmppiDashboard.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Data Explorer";
+    ViewBag.Lang = Model.Lang;
+    bool ms = Model.Lang == "ms";
+}
+
+<!-- Pass initial data to JavaScript -->
+<script>
+    window.SMPPI = {
+        lang: '@Model.Lang',
+        dataSources: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.DataSources)),
+        savedJoins: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.SavedJoins))
+    };
+</script>
+
+<!-- ═══ DATA SOURCE SELECTOR ════════════════════════════════════════════════ -->
+<div id="source-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-4">
+    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+        @(ms ? "Pilih Sumber Data" : "Select Data Source")
+    </label>
+    <div class="flex flex-wrap gap-2" id="source-tabs">
+        @foreach (var src in Model.DataSources)
+        {
+            <button
+                class="source-tab px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-slate-100 text-slate-600 hover:bg-slate-200"
+                data-id="@src.Id">
+                @src.Label
+                <span class="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-500">
+                    @src.RecordCount
+                </span>
+            </button>
+        }
+    </div>
+    <p id="source-description" class="text-xs text-slate-400 mt-2"></p>
+
+    <!-- Custom/joined data indicator (hidden by default) -->
+    <div id="custom-data-banner" class="hidden mt-3 flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-xl px-4 py-2.5">
+        <span class="text-orange-600">⛓</span>
+        <div class="flex-1">
+            <p id="custom-data-label" class="text-sm font-semibold text-orange-800"></p>
+            <p id="custom-data-count" class="text-xs text-orange-600"></p>
+        </div>
+        <button id="clear-custom-btn" class="text-xs text-orange-700 hover:text-orange-900">
+            ✕ @(ms ? "Bersih" : "Clear")
+        </button>
+    </div>
+</div>
+
+<!-- ═══ JOIN BUILDER (collapsible) ═══════════════════════════════════════════ -->
+<div id="join-panel" class="hidden bg-white rounded-2xl shadow-sm border border-orange-200 p-5 mb-4">
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h3 class="text-base font-semibold text-slate-800">⛓ @(ms ? "Pembina Gabungan Jadual" : "Join Table Builder")</h3>
+            <p class="text-xs text-slate-400">@(ms ? "Gabungkan beberapa sumber data dan simpan hasilnya" : "Combine multiple data sources and save the result")</p>
+        </div>
+        <button id="close-join-btn" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <!-- Source selection -->
+        <div class="md:col-span-1">
+            <label class="block text-xs font-semibold text-slate-500 mb-2">@(ms ? "Pilih Sumber" : "Select Sources")</label>
+            <div class="space-y-2" id="join-source-checkboxes">
+                @foreach (var src in Model.DataSources)
+                {
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" class="join-source-check rounded" value="@src.Id" />
+                        <span class="text-sm text-slate-700">@src.Label</span>
+                        <span class="text-xs text-slate-400">(@src.RecordCount)</span>
+                    </label>
+                }
+            </div>
+        </div>
+
+        <!-- Join column -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-2">@(ms ? "Lajur Gabungan" : "Join Column")</label>
+            <select id="join-column-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="">@(ms ? "Pilih lajur..." : "Select column...")</option>
+            </select>
+            <p class="text-xs text-slate-400 mt-1">@(ms ? "Lajur yang dikongsi antara sumber" : "Column shared between sources")</p>
+        </div>
+
+        <!-- Join type -->
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-2">@(ms ? "Jenis Gabungan" : "Join Type")</label>
+            <select id="join-type-select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="inner">INNER JOIN @(ms ? "(rekod sepadan sahaja)" : "(matching records only)")</option>
+                <option value="left">LEFT JOIN @(ms ? "(semua kiri + sepadan kanan)" : "(all left + matching right)")</option>
+                <option value="full">FULL OUTER JOIN @(ms ? "(semua rekod)" : "(all records)")</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="flex gap-3 mb-4">
+        <button id="preview-join-btn"
+            class="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors flex items-center gap-2 disabled:opacity-50">
+            👁 @(ms ? "Pratonton Gabungan" : "Preview Join")
+        </button>
+        <button id="load-join-btn"
+            class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
+            📊 @(ms ? "Muatkan ke Jadual Utama" : "Load into Main Table")
+        </button>
+        <button id="export-join-btn"
+            class="hidden px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2">
+            ⬇ @(ms ? "Eksport Excel" : "Export Excel")
+        </button>
+    </div>
+
+    <!-- Save section -->
+    <div id="join-save-section" class="hidden border-t border-slate-100 pt-4">
+        <div class="flex gap-3">
+            <input id="join-save-name" type="text"
+                   placeholder="@(ms ? "Nama untuk disimpan..." : "Name for this join...")"
+                   class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            <button id="save-join-btn"
+                class="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors">
+                💾 @(ms ? "Simpan" : "Save")
+            </button>
+        </div>
+    </div>
+
+    <!-- Preview table -->
+    <div id="join-preview-container" class="hidden mt-4">
+        <h4 class="text-sm font-semibold text-slate-600 mb-2" id="join-preview-title"></h4>
+        <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-72 overflow-y-auto" id="join-preview-table"></div>
+    </div>
+
+    <!-- Saved joins -->
+    @if (Model.SavedJoins.Any())
+    {
+        <div class="border-t border-slate-100 mt-4 pt-4">
+            <h4 class="text-sm font-semibold text-slate-600 mb-3">@(ms ? "Gabungan Tersimpan" : "Saved Joins")</h4>
+            <div class="space-y-2" id="saved-joins-list">
+                @foreach (var join in Model.SavedJoins)
+                {
+                    <div class="flex items-center gap-3 bg-slate-50 rounded-lg px-3 py-2" data-join-id="@join.Id">
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-slate-700">@join.Name</p>
+                            <p class="text-xs text-slate-400">
+                                @string.Join(" + ", join.SourceIds) · @join.CreatedAt.ToString("dd MMM yyyy HH:mm")
+                            </p>
+                        </div>
+                        <button class="load-saved-join-btn text-blue-600 hover:text-blue-800 text-xs font-medium">
+                            @(ms ? "Muat" : "Load")
+                        </button>
+                        <button class="delete-saved-join-btn text-red-500 hover:text-red-700 text-xs">✕</button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+<!-- ═══ SEARCH + TOOLBAR ═════════════════════════════════════════════════════ -->
+<div id="search-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-4">
+    <div class="flex flex-wrap gap-3 items-center">
+        <!-- Global search -->
+        <div class="relative flex-1 min-w-56">
+            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            <input id="global-search" type="text"
+                   placeholder="@(ms ? "Cari dalam semua lajur..." : "Search across all columns...")"
+                   class="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <!-- Toolbar buttons -->
+        <button id="toggle-filters-btn"
+            class="toolbar-btn px-4 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-medium flex items-center gap-2 hover:bg-slate-50 transition-all">
+            ⚡ @(ms ? "Penapis" : "Filter")
+            <span id="filter-count-badge" class="hidden bg-blue-600 text-white text-xs rounded-full px-1.5 py-0.5"></span>
+        </button>
+        <button id="toggle-ai-btn"
+            class="toolbar-btn px-4 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-medium flex items-center gap-2 hover:bg-slate-50 transition-all">
+            ✨ AI
+        </button>
+        <button id="toggle-join-btn"
+            class="toolbar-btn px-4 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-medium flex items-center gap-2 hover:bg-slate-50 transition-all">
+            ⛓ @(ms ? "Gabung" : "Join")
+        </button>
+        <button id="toggle-viz-btn"
+            class="toolbar-btn px-4 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-medium flex items-center gap-2 hover:bg-slate-50 transition-all">
+            📊 @(ms ? "Carta" : "Chart")
+        </button>
+        <button id="reset-all-btn"
+            class="hidden px-4 py-3 rounded-xl border border-red-200 text-red-600 text-sm font-medium flex items-center gap-2 hover:bg-red-50 transition-all">
+            ↺ @(ms ? "Kosongkan Semua" : "Clear All")
+        </button>
+    </div>
+
+    <!-- AI Query Builder (collapsible) -->
+    <div id="ai-panel" class="hidden border-t border-slate-100 mt-4 pt-4 space-y-3">
+        <p class="text-xs text-slate-500 flex items-center gap-1">
+            🛡 @(ms ? "Nota: AI hanya jana pertanyaan SELECT baca-sahaja." : "Note: AI generates read-only SELECT queries only.")
+        </p>
+        <div class="flex gap-3 items-start">
+            <textarea id="ai-prompt" rows="2"
+                placeholder="@(ms ? "Terangkan data yang ingin anda cari..." : "Describe the data you want to find...")"
+                class="flex-1 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"></textarea>
+            <button id="ai-generate-btn"
+                class="px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-medium hover:bg-purple-700 transition-colors flex items-center gap-2 flex-shrink-0">
+                ✨ @(ms ? "Jana" : "Generate")
+            </button>
+        </div>
+        <div id="ai-samples" class="flex flex-wrap gap-2"></div>
+        <div id="ai-result-section" class="hidden space-y-3">
+            <pre id="ai-sql-output" class="bg-slate-900 text-green-400 p-3 rounded-xl text-xs font-mono overflow-x-auto"></pre>
+            <p id="ai-explanation" class="text-xs text-slate-400"></p>
+            <div class="flex items-center gap-3">
+                <button id="ai-run-btn"
+                    class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center gap-2">
+                    ▶ @(ms ? "Jalankan Pertanyaan" : "Run Query")
+                </button>
+                <span id="ai-result-count" class="text-sm text-slate-500"></span>
+            </div>
+            <div id="ai-results-table" class="hidden overflow-x-auto border border-slate-200 rounded-xl max-h-64 overflow-y-auto"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ RESULTS TABLE ════════════════════════════════════════════════════════ -->
+<div id="results-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-4">
+    <!-- Results header -->
+    <div class="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h2 class="text-base font-semibold text-slate-800">
+                @(ms ? "Hasil Carian" : "Search Results")
+            </h2>
+            <p class="text-sm text-slate-500" id="results-summary">—</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="export-all-btn"
+                class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-2">
+                ⬇ @(ms ? "Eksport Semua" : "Export All")
+            </button>
+            <button id="export-filtered-btn"
+                class="hidden px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 flex items-center gap-2">
+                ⬇ @(ms ? "Eksport Ditapis" : "Export Filtered")
+            </button>
+        </div>
+    </div>
+
+    <!-- Table container -->
+    <div class="overflow-x-auto" id="table-container">
+        <div class="flex items-center justify-center py-16 text-slate-400">
+            <div class="text-center">
+                <p class="text-4xl mb-2">⏳</p>
+                <p>@(ms ? "Memuatkan data..." : "Loading data...")</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="px-6 py-3 border-t border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+            <span>@(ms ? "Baris per halaman:" : "Rows per page:")</span>
+            <select id="page-size-select" class="border border-slate-300 rounded px-2 py-1 text-sm">
+                <option value="5">5</option>
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+        <div class="flex items-center gap-1">
+            <span class="text-sm text-slate-600 mr-2" id="page-info">—</span>
+            <button id="page-first" class="p-1 rounded hover:bg-slate-100 disabled:opacity-30" disabled>⟪</button>
+            <button id="page-prev"  class="p-1 rounded hover:bg-slate-100 disabled:opacity-30" disabled>‹</button>
+            <button id="page-next"  class="p-1 rounded hover:bg-slate-100 disabled:opacity-30" disabled>›</button>
+            <button id="page-last"  class="p-1 rounded hover:bg-slate-100 disabled:opacity-30" disabled>⟫</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ VISUALIZATION PANEL ═══════════════════════════════════════════════════ -->
+<div id="viz-panel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-4">
+    <div class="flex items-center justify-between mb-4">
+        <div>
+            <h3 class="text-base font-semibold text-slate-800">📊 @(ms ? "Visualisasi Data" : "Data Visualization")</h3>
+            <p class="text-xs text-slate-400">@(ms ? "Pilih jenis carta dan lajur untuk divisualisasikan" : "Select chart type and columns to visualize")</p>
+        </div>
+        <button id="close-viz-btn" class="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">@(ms ? "Jenis Carta" : "Chart Type")</label>
+            <select id="viz-chart-type" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="bar">📊 Bar Chart</option>
+                <option value="line">📈 Line Chart</option>
+                <option value="pie">🥧 Pie Chart</option>
+                <option value="doughnut">🍩 Doughnut</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">X @(ms ? "Paksi" : "Axis")</label>
+            <select id="viz-x-axis" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"></select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">Y @(ms ? "Paksi / Nilai" : "Axis / Value")</label>
+            <select id="viz-y-axis" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="__count">Count</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-semibold text-slate-500 mb-1">@(ms ? "Agregasi" : "Aggregation")</label>
+            <select id="viz-aggregation" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                <option value="count">Count</option>
+                <option value="sum">Sum</option>
+                <option value="avg">Average</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="flex gap-3 mb-4">
+        <button id="viz-generate-btn"
+            class="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 flex items-center gap-2">
+            📊 @(ms ? "Janakan Carta" : "Generate Chart")
+        </button>
+        <button id="viz-ai-suggest-btn"
+            class="px-4 py-2 border border-purple-300 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-50 flex items-center gap-2">
+            ✨ @(ms ? "Cadangan AI" : "AI Suggest")
+        </button>
+    </div>
+
+    <div id="viz-chart-container" class="hidden">
+        <canvas id="viz-chart" style="max-height:400px;"></canvas>
+    </div>
+</div>
+
+<!-- Explain popover -->
+<div id="explain-popover"
+     class="hidden fixed z-50 bg-white rounded-xl shadow-2xl border border-slate-200 p-4 w-80"
+     style="top:0;left:0">
+    <div class="flex items-start justify-between mb-2">
+        <div class="flex-1 min-w-0">
+            <p id="explain-col-label" class="text-xs text-slate-500"></p>
+            <p id="explain-value" class="text-sm font-semibold text-slate-800 truncate"></p>
+        </div>
+        <button id="explain-close" class="ml-2 text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <button id="explain-action-btn"
+        class="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-700 flex items-center justify-center gap-2">
+        📖 @(ms ? "Terangkan nilai ini" : "Explain this value")
+    </button>
+    <div id="explain-result" class="hidden bg-purple-50 rounded-lg p-3 text-xs text-slate-700 border border-purple-100 leading-relaxed"></div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="~/js/dashboard.js" asp-append-version="true"></script>
+}
