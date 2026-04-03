@@ -1,0 +1,291 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "SMPPI Data Extractor";
+    var t = ViewBag.Translations as Dictionary<string, string>;
+    var lang = ViewBag.Lang as string ?? "en";
+}
+
+<div id="app" data-lang="@lang">
+    <!-- Header -->
+    <nav class="navbar navbar-dark smppi-header">
+        <div class="container-fluid">
+            <span class="navbar-brand d-flex align-items-center gap-2">
+                <i class="bi bi-database-fill fs-4"></i>
+                <span>
+                    <strong>@t["app_title"]</strong>
+                    <small class="d-block text-white-50" style="font-size:0.75rem">@t["app_subtitle"]</small>
+                </span>
+            </span>
+            <div class="d-flex align-items-center gap-3">
+                <span class="badge bg-light text-dark">
+                    <i class="bi bi-collection"></i> @Model.DataSources.Count @t["total_sources"]
+                </span>
+                <button class="btn btn-outline-light btn-sm" id="btnLangToggle" onclick="toggleLang()">
+                    @(lang == "en" ? "BM" : "EN")
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid p-3">
+        <!-- Data Source Tabs -->
+        <ul class="nav nav-tabs mb-3" id="sourceTabs">
+            @foreach (var ds in Model.DataSources)
+            {
+                <li class="nav-item">
+                    <a class="nav-link @(ds.Id == Model.DataSources[0].Id ? "active" : "")"
+                       href="#" data-source="@ds.Id" onclick="selectSource('@ds.Id', this)">
+                        @t[ds.LabelKey]
+                    </a>
+                </li>
+            }
+        </ul>
+
+        <!-- Toolbar -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="globalSearch"
+                           placeholder="@t["search_placeholder"]" oninput="debounceSearch()" />
+                    <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-8 d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-primary btn-sm" onclick="toggleColumnFilters()">
+                    <i class="bi bi-funnel"></i> @t["filter_columns"]
+                    <span id="filterBadge" class="badge bg-danger ms-1 d-none">0</span>
+                </button>
+                <button class="btn btn-outline-success btn-sm" onclick="exportData('all')">
+                    <i class="bi bi-file-earmark-excel"></i> @t["export_all"]
+                </button>
+                <button class="btn btn-outline-success btn-sm d-none" id="btnExportFiltered" onclick="exportData('filtered')">
+                    <i class="bi bi-funnel-fill"></i> @t["export_filtered"]
+                </button>
+                <button class="btn btn-outline-info btn-sm" onclick="toggleAiPanel()">
+                    <i class="bi bi-robot"></i> @t["ai_title"]
+                </button>
+                <button class="btn btn-outline-warning btn-sm" onclick="toggleJoinPanel()">
+                    <i class="bi bi-diagram-3"></i> @t["join_title"]
+                </button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="toggleVizPanel()">
+                    <i class="bi bi-bar-chart"></i> @t["viz_title"]
+                </button>
+            </div>
+        </div>
+
+        <!-- Column Filters (collapsible) -->
+        <div id="columnFiltersPanel" class="card mb-3 d-none">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong><i class="bi bi-funnel"></i> @t["filter_columns"]</strong>
+                    <button class="btn btn-sm btn-outline-danger" onclick="clearAllFilters()">@t["clear_filters"]</button>
+                </div>
+                <div class="row g-2" id="columnFiltersContainer"></div>
+            </div>
+        </div>
+
+        <!-- AI Query Panel (collapsible) -->
+        <div id="aiPanel" class="card mb-3 d-none border-info">
+            <div class="card-header bg-info text-white d-flex justify-content-between">
+                <span><i class="bi bi-robot"></i> @t["ai_title"]</span>
+                <button class="btn btn-sm btn-outline-light" onclick="toggleAiPanel()"><i class="bi bi-x"></i></button>
+            </div>
+            <div class="card-body">
+                <div class="mb-2" id="sampleQueriesContainer"></div>
+                <div class="input-group mb-2">
+                    <input type="text" class="form-control" id="aiPrompt" placeholder="@t["ai_placeholder"]"
+                           onkeydown="if(event.key==='Enter')runAiQuery()" />
+                    <button class="btn btn-info" onclick="runAiQuery()">
+                        <i class="bi bi-lightning"></i> @t["ai_generate"]
+                    </button>
+                </div>
+                <div id="aiResults" class="d-none">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">@t["ai_sql_label"]</label>
+                        <pre class="bg-dark text-light p-2 rounded" id="aiSqlOutput"></pre>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold">@t["ai_explanation"]</label>
+                        <p id="aiExplanationOutput" class="text-muted"></p>
+                    </div>
+                    <button class="btn btn-sm btn-success" onclick="runAiExecute()">
+                        <i class="bi bi-play"></i> @t["ai_run"]
+                    </button>
+                    <div id="aiQueryResults" class="mt-2 d-none">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered" id="aiResultsTable"></table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Builder Panel (collapsible) -->
+        <div id="joinPanel" class="card mb-3 d-none border-warning">
+            <div class="card-header bg-warning d-flex justify-content-between">
+                <span><i class="bi bi-diagram-3"></i> @t["join_title"]</span>
+                <button class="btn btn-sm btn-outline-dark" onclick="toggleJoinPanel()"><i class="bi bi-x"></i></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">@t["join_select_sources"]</label>
+                        <div id="joinSourceCheckboxes">
+                            @foreach (var ds in Model.DataSources)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input join-source-check" type="checkbox"
+                                           value="@ds.Id" id="joinSrc_@ds.Id" onchange="onJoinSourceChange()" />
+                                    <label class="form-check-label" for="joinSrc_@ds.Id">@t[ds.LabelKey]</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">@t["join_column"]</label>
+                        <select class="form-select" id="joinColumnSelect" disabled></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">@t["join_type"]</label>
+                        <select class="form-select" id="joinTypeSelect">
+                            <option value="inner">@t["join_inner"]</option>
+                            <option value="left">@t["join_left"]</option>
+                            <option value="full">@t["join_full"]</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-warning w-100" onclick="executeJoin()">
+                            <i class="bi bi-play"></i> @t["join_preview"]
+                        </button>
+                    </div>
+                </div>
+                <div id="joinResults" class="d-none">
+                    <div class="d-flex gap-2 mb-2">
+                        <button class="btn btn-sm btn-outline-success" onclick="saveJoin()">
+                            <i class="bi bi-save"></i> @t["join_save"]
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" onclick="loadJoinsList()">
+                            <i class="bi bi-folder-open"></i> @t["join_load"]
+                        </button>
+                    </div>
+                    <div class="table-responsive" style="max-height:400px;overflow:auto">
+                        <table class="table table-sm table-bordered table-striped" id="joinResultsTable"></table>
+                    </div>
+                </div>
+                <div id="savedJoinsPanel" class="mt-2 d-none">
+                    <h6>@t["join_saved_list"]</h6>
+                    <div id="savedJoinsList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Panel (collapsible) -->
+        <div id="vizPanel" class="card mb-3 d-none border-secondary">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between">
+                <span><i class="bi bi-bar-chart"></i> @t["viz_title"]</span>
+                <button class="btn btn-sm btn-outline-light" onclick="toggleVizPanel()"><i class="bi bi-x"></i></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-2">
+                        <label class="form-label">@t["viz_chart_type"]</label>
+                        <select class="form-select form-select-sm" id="vizChartType">
+                            <option value="bar">@t["viz_bar"]</option>
+                            <option value="line">@t["viz_line"]</option>
+                            <option value="pie">@t["viz_pie"]</option>
+                            <option value="scatter">@t["viz_scatter"]</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">@t["viz_xaxis"]</label>
+                        <select class="form-select form-select-sm" id="vizXAxis"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">@t["viz_yaxis"]</label>
+                        <select class="form-select form-select-sm" id="vizYAxis"></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">@t["viz_aggregate"]</label>
+                        <select class="form-select form-select-sm" id="vizAggregate">
+                            <option value="count">@t["viz_count"]</option>
+                            <option value="sum">@t["viz_sum"]</option>
+                            <option value="avg">@t["viz_avg"]</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button class="btn btn-secondary btn-sm w-100" onclick="generateChart()">
+                            <i class="bi bi-bar-chart"></i> @t["viz_generate"]
+                        </button>
+                    </div>
+                </div>
+                <div style="position:relative;height:350px;">
+                    <canvas id="vizCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped table-bordered mb-0" id="dataTable">
+                        <thead class="smppi-thead" id="dataTableHead"></thead>
+                        <tbody id="dataTableBody"></tbody>
+                    </table>
+                </div>
+                <!-- Empty state -->
+                <div id="emptyState" class="text-center py-5 d-none">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">@t["no_results"]</p>
+                </div>
+            </div>
+            <!-- Pagination -->
+            <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <label>@t["page_size"]:</label>
+                    <select class="form-select form-select-sm" style="width:80px" id="pageSizeSelect"
+                            onchange="changePageSize()">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span id="resultInfo" class="text-muted small"></span>
+                </div>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0" id="pagination"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cell Explain Modal -->
+    <div class="modal fade" id="explainModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title"><i class="bi bi-lightbulb"></i> @t["explain_title"]</h6>
+                    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="explainContent">
+                    <div class="spinner-border spinner-border-sm"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Pass data source configs to JS
+    window.DATA_SOURCES = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DataSources));
+    window.LANG = '@lang';
+    window.TRANSLATIONS = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(t));
+    // Init on load
+    document.addEventListener('DOMContentLoaded', () => initDashboard());
+</script>
+}

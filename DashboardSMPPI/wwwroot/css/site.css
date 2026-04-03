@@ -1,0 +1,113 @@
+/* ─── SMPPI Dashboard Styles ──────────────────────────────────────────── */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    font-size: 14px;
+}
+
+/* Header */
+.smppi-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+    padding: 0.75rem 1rem;
+}
+
+/* Table header */
+.smppi-thead {
+    background: #1e3a5f;
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+.smppi-thead th {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+.smppi-thead th:hover { background: #2563eb; }
+
+/* Table cell - clickable for explain */
+#dataTable td {
+    cursor: pointer;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+}
+#dataTable td:hover {
+    color: #7e22ce;
+    text-decoration: underline dotted;
+}
+
+/* Source tabs */
+#sourceTabs .nav-link {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+}
+#sourceTabs .nav-link.active {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+    font-weight: 600;
+}
+
+/* Filter inputs */
+.filter-input {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+.filter-input:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 0.15rem rgba(37,99,235,.15);
+}
+
+/* Cards */
+.card {
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+
+/* Panels */
+#aiPanel .card-header,
+#joinPanel .card-header,
+#vizPanel .card-header {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+
+/* AI SQL output */
+#aiSqlOutput {
+    font-size: 0.8rem;
+    border-radius: 0.5rem;
+    max-height: 150px;
+    overflow: auto;
+}
+
+/* Pagination */
+.pagination .page-link { font-size: 0.85rem; }
+
+/* Explain modal */
+#explainModal .modal-dialog { max-width: 320px; }
+#explainContent { font-size: 0.85rem; line-height: 1.6; }
+
+/* Join results */
+#joinResultsTable { font-size: 0.8rem; }
+
+/* Badge */
+.badge { font-size: 0.7rem; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f1f1; }
+::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #999; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container-fluid { padding: 0.5rem !important; }
+    #sourceTabs .nav-link { font-size: 0.75rem; padding: 0.4rem 0.6rem; }
+}
